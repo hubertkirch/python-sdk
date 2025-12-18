@@ -257,33 +257,35 @@ class InfoAPI(BaseAPIClient):
         response = self.get("/api/v1/info/prices")
         return MarketTransformer.transform_all_mids(response)
 
-    def l2_book(self, coin: str) -> Dict:
+    def l2_snapshot(self, name: str) -> Dict:
         """
-        Get L2 orderbook.
-        Hyperliquid-compatible method.
+        Get L2 orderbook snapshot (Hyperliquid-compatible).
 
         Args:
-            coin: Symbol/coin name
+            name: Symbol name (Hyperliquid parameter)
 
         Returns:
             L2 orderbook in Hyperliquid format
         """
         response = self.get(
             "/api/v1/book",
-            params={"symbol": coin}
+            params={"symbol": name}
         )
         return MarketTransformer.transform_l2_book(response)
 
-    def candles(self, coin: str, interval: str, start_time: int, end_time: int) -> List[Dict]:
+    def l2_book(self, coin: str) -> Dict:
+        """Deprecated: Use l2_snapshot() instead for Hyperliquid compatibility."""
+        return self.l2_snapshot(coin)
+
+    def candles_snapshot(self, name: str, interval: str, startTime: int, endTime: int) -> List[Dict]:
         """
-        Get candlestick data.
-        Hyperliquid-compatible method.
+        Get candlestick data snapshot (Hyperliquid-compatible).
 
         Args:
-            coin: Symbol/coin name
+            name: Symbol name (Hyperliquid parameter)
             interval: Time interval (1m, 5m, 15m, 1h, 4h, 1d)
-            start_time: Start timestamp (milliseconds)
-            end_time: End timestamp (milliseconds)
+            startTime: Start timestamp (milliseconds)
+            endTime: End timestamp (milliseconds)
 
         Returns:
             Candles in Hyperliquid format
@@ -291,13 +293,17 @@ class InfoAPI(BaseAPIClient):
         response = self.get(
             "/api/v1/candles",
             params={
-                "symbol": coin,
+                "symbol": name,
                 "interval": interval,
-                "start_time": start_time,
-                "end_time": end_time
+                "start_time": startTime,
+                "end_time": endTime
             }
         )
-        return MarketTransformer.transform_candles(response, coin, interval)
+        return MarketTransformer.transform_candles(response, name, interval)
+
+    def candles(self, coin: str, interval: str, start_time: int, end_time: int) -> List[Dict]:
+        """Deprecated: Use candles_snapshot() for Hyperliquid compatibility."""
+        return self.candles_snapshot(coin, interval, start_time, end_time)
 
     def funding_rates(self) -> List[Dict]:
         """
