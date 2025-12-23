@@ -196,10 +196,11 @@ class BaseAPIClient:
             **data
         }
 
-        # Add agent_wallet field if in agent mode
+        # Don't add type to request body - it goes in header only
+
+        # Add agent_wallet field only if in agent mode
         if self.auth.is_agent_mode():
             request["agent_wallet"] = self.auth.get_agent_wallet()
-        else:
-            request["agent_wallet"] = None  # Explicitly set to None for direct mode
+        # Don't include agent_wallet field at all if not in agent mode
 
         return request

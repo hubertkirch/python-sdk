@@ -37,8 +37,8 @@ class ExchangeAPI(BaseAPIClient):
         name: str,
         is_buy: bool,
         sz: float,
-        limit_px: float,
-        order_type: Dict[str, Any],
+        limit_px: float = None,
+        order_type: Dict[str, Any] = {"limit": {"tif": "GTC"}},
         reduce_only: bool = False,
         cloid: Optional[str] = None,
         builder: Optional[Dict[str, Any]] = None
@@ -51,7 +51,7 @@ class ExchangeAPI(BaseAPIClient):
             is_buy: True for buy, False for sell
             sz: Order size
             limit_px: Limit price
-            order_type: Order type config (e.g., {"limit": {"tif": "Gtc"}})
+            order_type: Order type config (e.g., {"limit": {"tif": "GTC"}})
             reduce_only: Reduce only flag
             cloid: Client order ID
             builder: Optional builder dict {"b": "address", "f": fee_bps}
@@ -67,8 +67,8 @@ class ExchangeAPI(BaseAPIClient):
             "side": "bid" if is_buy else "ask",
             "amount": str(sz),
             "reduce_only": reduce_only,
-            "client_order_id": client_order_id,
-            "tif": "GTC"  # Default time in force
+            "client_order_id": client_order_id
+            # TIF will be set based on order type
         }
 
         # Handle builder if provided
@@ -83,34 +83,66 @@ class ExchangeAPI(BaseAPIClient):
         # Handle both string and dict formats for order_type
         if isinstance(order_type, str):
             if order_type.lower() == "limit":
+                if limit_px is None:
+                    raise ValueError("limit_px is required for limit orders")
                 order_data["price"] = str(limit_px)
                 # Default TIF for limit orders
-                tif = "Gtc"
+                order_data["tif"] = "GTC"
+                tif = "GTC"
             elif order_type.lower() == "market":
-                order_data["type"] = "market"
+                # Market orders require slippage_percent instead of price
+                order_data["slippage_percent"] = "0.5"  # Default 0.5% slippage
+                # Remove price field if present
+                if "price" in order_data:
+                    del order_data["price"]
+                # Market orders don't use TIF
                 tif = None
         elif isinstance(order_type, dict):
             if "limit" in order_type:
+                if limit_px is None:
+                    raise ValueError("limit_px is required for limit orders")
                 order_data["price"] = str(limit_px)
-                tif = order_type["limit"].get("tif", "Gtc")
+                tif = order_type["limit"].get("tif", "GTC")
+                order_data["tif"] = tif  # Set initial TIF
             elif "market" in order_type:
-                order_data["type"] = "market"
+                # Market orders require slippage_percent instead of price
+                slippage = order_type.get("market", {}).get("slippage", "0.5")
+                order_data["slippage_percent"] = str(slippage)
+                # Remove price field if present
+                if "price" in order_data:
+                    del order_data["price"]
+                # Market orders don't use TIF
                 tif = None
 
-        # Handle TIF settings
+        # Handle TIF settings - map Hyperliquid values to Pacifica format
+        # Only apply TIF for limit orders (market orders don't have TIF)
         if tif:
             if tif == "Alo":
                 order_data["post_only"] = True
+                order_data["tif"] = "ALO"  # Pacifica uses ALO
             elif tif == "Ioc":
                 order_data["tif"] = "IOC"
             elif tif == "Tob":
                 order_data["tif"] = "TOB"
+            # GTC is already set as default, but ensure it's uppercase
+            elif tif in ["Gtc", "GTC"]:
+                order_data["tif"] = "GTC"
+        # For market orders, ensure no TIF is set
+        elif "slippage_percent" in order_data and "tif" in order_data:
+            del order_data["tif"]
+
+        # Determine correct signature type based on order type
+        if "slippage_percent" in order_data:
+            signature_type = "create_market_order"
+        else:
+            signature_type = "create_limit_order"
 
         # Build authenticated request with agent wallet support
-        request = self._build_request_with_auth(order_data, signature_type="create_order")
+        request = self._build_request_with_auth(order_data, signature_type=signature_type)
 
-        # Send request (already includes auth, so authenticated=False)
-        response = self.post("/orders/create", data=request, authenticated=False)
+        # Send request with operation type header (already includes auth, so authenticated=False)
+        headers = {"type": signature_type}
+        response = self.post("/orders/create", data=request, authenticated=False, headers=headers)
 
         # Extract order ID safely
         order_id = None
@@ -152,12 +184,12 @@ class ExchangeAPI(BaseAPIClient):
 
             # Create the order data that needs to be signed
             order_data = {
-                "symbol": order_req["name"],  # Use Hyperliquid's 'name' parameter
+                "symbol": order_req.get("name") or order_req.get("coin"),  # Accept both 'name' (Hyperliquid) and 'coin' fields
                 "side": "bid" if order_req["is_buy"] else "ask",
                 "amount": str(order_req["sz"]),
                 "reduce_only": order_req.get("reduce_only", False),
-                "client_order_id": client_order_id,
-                "tif": "GTC"  # Default time in force
+                "client_order_id": client_order_id
+                # TIF will be set based on order type
             }
 
             # Handle builder dict if provided
@@ -169,20 +201,48 @@ class ExchangeAPI(BaseAPIClient):
                 if "f" in builder:
                     order_data["builder_fee"] = builder["f"]
 
-            order_type = order_req.get("order_type", {"limit": {"tif": "Gtc"}})
+            order_type = order_req.get("order_type", {"limit": {"tif": "GTC"}})
 
-            if "limit" in order_type:
-                order_data["price"] = str(order_req["limit_px"])
-                tif = order_type["limit"].get("tif", "Gtc")
+            # Handle both string and dict formats for order_type
+            if isinstance(order_type, str):
+                if order_type.lower() == "limit":
+                    order_data["price"] = str(order_req["limit_px"])
+                    order_data["tif"] = "GTC"  # Default TIF for limit orders
+                    tif = "GTC"
+                elif order_type.lower() == "market":
+                    order_data["slippage_percent"] = "0.5"
+                    # Market orders don't have TIF
+                    tif = None
+            elif isinstance(order_type, dict):
+                if "limit" in order_type:
+                    order_data["price"] = str(order_req["limit_px"])
+                    tif = order_type["limit"].get("tif", "GTC")
+                    order_data["tif"] = tif
+                elif "market" in order_type:
+                    order_data["slippage_percent"] = "0.5"
+                    # Market orders don't have TIF
+                    tif = None
+
+            # Handle TIF settings for limit orders - Map Hyperliquid to Pacifica format
+            if tif:
                 if tif == "Alo":
                     order_data["post_only"] = True
+                    order_data["tif"] = "ALO"
                 elif tif == "Ioc":
                     order_data["tif"] = "IOC"
-            elif "market" in order_type:
-                order_data["slippage_percent"] = "0.5"
+                elif tif == "Gtc" or tif == "GTC":
+                    order_data["tif"] = "GTC"
+                elif tif == "Tob":
+                    order_data["tif"] = "TOB"
+
+            # Determine correct signature type based on order type
+            if "slippage_percent" in order_data:
+                sig_type = "create_market_order"
+            else:
+                sig_type = "create_limit_order"
 
             # Build authenticated request for this order with agent wallet support
-            signed_request = self._build_request_with_auth(order_data, signature_type="create_order")
+            signed_request = self._build_request_with_auth(order_data, signature_type=sig_type)
 
             # Add to actions list
             actions.append({
@@ -196,8 +256,23 @@ class ExchangeAPI(BaseAPIClient):
 
         # Transform response to Hyperliquid format
         statuses = []
-        for order_result in response.get("data", {}).get("results", []):
-            if order_result.get("success"):
+
+        # Handle various response formats safely
+        if isinstance(response, dict):
+            results = response.get("data", {})
+            if isinstance(results, dict):
+                results = results.get("results", [])
+            elif isinstance(results, list):
+                # If data is already a list
+                pass
+            else:
+                results = []
+        else:
+            # If response is not a dict, treat as error
+            results = []
+
+        for order_result in results:
+            if isinstance(order_result, dict) and order_result.get("success"):
                 statuses.append({
                     "resting": {
                         "oid": order_result.get("order_id"),
@@ -205,8 +280,11 @@ class ExchangeAPI(BaseAPIClient):
                     }
                 })
             else:
+                error_msg = "Unknown error"
+                if isinstance(order_result, dict):
+                    error_msg = order_result.get("error", error_msg)
                 statuses.append({
-                    "error": order_result.get("error", "Unknown error")
+                    "error": error_msg
                 })
 
         return {
@@ -366,7 +444,7 @@ class ExchangeAPI(BaseAPIClient):
         data = {
             "account": self.auth.get_public_key() if self.auth else None,
             "symbol": name,
-            "leverage": leverage,
+            "leverage": int(leverage),  # API expects integer, not string
             "timestamp": timestamp,
             "type": "update_leverage"
         }

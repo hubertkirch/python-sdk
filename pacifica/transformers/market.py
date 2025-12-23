@@ -34,7 +34,7 @@ class MarketTransformer(ResponseTransformer):
         for price_data in prices:
             mids[price_data["symbol"]] = price_data.get("mid", "0")
 
-        return {"mids": mids}
+        return mids
 
     @classmethod
     def transform_l2_book(cls, book_response: Dict) -> Dict:

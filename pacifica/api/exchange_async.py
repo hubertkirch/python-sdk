@@ -116,7 +116,7 @@ class ExchangeAsyncAPI(BaseAsyncAPIClient):
             client_order_id = self._generate_client_order_id(order_req.get("cloid"))
 
             order_data = {
-                "symbol": order_req["name"],  # Use Hyperliquid's 'name' parameter
+                "symbol": order_req.get("name") or order_req.get("coin"),  # Accept both 'name' (Hyperliquid) and 'coin' fields
                 "side": "bid" if order_req["is_buy"] else "ask",
                 "amount": str(order_req["sz"]),
                 "reduce_only": order_req.get("reduce_only", False),

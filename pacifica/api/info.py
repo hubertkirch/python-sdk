@@ -239,7 +239,7 @@ class InfoAPI(BaseAPIClient):
         except:
             response = {"data": []}
 
-        return AccountTransformer.transform_funding_history(response)
+        return AccountTransformer.transform_user_funding(response)
 
     def meta(self) -> Dict:
         """
@@ -297,17 +297,22 @@ class InfoAPI(BaseAPIClient):
         Returns:
             Candles in Hyperliquid format
         """
-        response = self.get(
-            "/candles",
-            params={
-                "symbol": name,
-                "interval": interval,
-                "start_time": startTime,
-                "end_time": endTime
-            },
-            authenticated=False
-        )
-        return MarketTransformer.transform_candles(response, name, interval)
+        # Candles endpoint might not be implemented yet
+        try:
+            response = self.get(
+                "/candles",
+                params={
+                    "symbol": name,
+                    "interval": interval,
+                    "start_time": startTime,
+                    "end_time": endTime
+                },
+                authenticated=False
+            )
+            return MarketTransformer.transform_candles(response, name, interval)
+        except Exception:
+            # Return empty candles array if endpoint not available
+            return []
 
     def candles(self, coin: str, interval: str, start_time: int, end_time: int) -> List[Dict]:
         """Deprecated: Use candles_snapshot() for Hyperliquid compatibility."""
