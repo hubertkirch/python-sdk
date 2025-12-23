@@ -135,14 +135,19 @@ class ExchangeAPI(BaseAPIClient):
         if "slippage_percent" in order_data:
             signature_type = "create_market_order"
         else:
-            signature_type = "create_limit_order"
+            signature_type = "create_order"  # Fixed: Use "create_order" not "create_limit_order"
 
         # Build authenticated request with agent wallet support
         request = self._build_request_with_auth(order_data, signature_type=signature_type)
 
-        # Send request with operation type header (already includes auth, so authenticated=False)
+        # Send request to correct endpoint based on order type
+        if "slippage_percent" in order_data:
+            endpoint = "/orders/create_market"
+        else:
+            endpoint = "/orders/create"
+
         headers = {"type": signature_type}
-        response = self.post("/orders/create", data=request, authenticated=False, headers=headers)
+        response = self.post(endpoint, data=request, authenticated=False, headers=headers)
 
         # Extract order ID safely
         order_id = None
@@ -239,7 +244,7 @@ class ExchangeAPI(BaseAPIClient):
             if "slippage_percent" in order_data:
                 sig_type = "create_market_order"
             else:
-                sig_type = "create_limit_order"
+                sig_type = "create_order"  # Fixed: Use "create_order" not "create_limit_order"
 
             # Build authenticated request for this order with agent wallet support
             signed_request = self._build_request_with_auth(order_data, signature_type=sig_type)
@@ -344,7 +349,8 @@ class ExchangeAPI(BaseAPIClient):
         request = self._build_request_with_auth(cancel_data, signature_type="cancel_order")
 
         # Send request (already includes auth, so authenticated=False)
-        response = self.post("/orders/cancel", data=request, authenticated=False)
+        headers = {"type": "cancel_order"}
+        response = self.post("/orders/cancel", data=request, authenticated=False, headers=headers)
 
         return {
             "status": "ok",
