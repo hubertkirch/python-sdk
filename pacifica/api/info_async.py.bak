@@ -34,13 +34,13 @@ class InfoAsyncAPI(BaseAsyncAPIClient):
         # Prepare all requests to run in parallel
         requests = [
             # Account data
-            {"method": "GET", "endpoint": "/account", "params": {"account": address}},
+            {"method": "GET", "endpoint": "/api/v1/account", "params": {"account": address}},
             # Positions
-            {"method": "GET", "endpoint": "/positions", "params": {"account": address}},
+            {"method": "GET", "endpoint": "/api/v1/positions", "params": {"account": address}},
             # Account settings (for custom leverage)
-            {"method": "GET", "endpoint": "/account/settings", "params": {"account": address}},
+            {"method": "GET", "endpoint": "/api/v1/account/settings", "params": {"account": address}},
             # Market info (for max leverage)
-            {"method": "GET", "endpoint": "/info"}
+            {"method": "GET", "endpoint": "/api/v1/info"}
         ]
 
         # Execute all requests in parallel
@@ -119,7 +119,7 @@ class InfoAsyncAPI(BaseAsyncAPIClient):
             address = self.auth.get_account()
 
         response = await self.get(
-            "/orders",
+            "/api/v1/orders",
             params={"account": address}
         )
 
@@ -140,7 +140,7 @@ class InfoAsyncAPI(BaseAsyncAPIClient):
             address = self.auth.get_account()
 
         response = await self.get(
-            "/trades/history",
+            "/api/v1/trades/history",
             params={"account": address}
         )
 
@@ -165,7 +165,7 @@ class InfoAsyncAPI(BaseAsyncAPIClient):
             params["start_time"] = start_time
 
         try:
-            response = await self.get("/funding/history", params=params)
+            response = await self.get("/api/v1/funding/history", params=params)
         except:
             response = {"data": []}
 
@@ -202,18 +202,18 @@ class InfoAsyncAPI(BaseAsyncAPIClient):
 
     async def meta(self) -> Dict:
         """Get market metadata - single call, already optimized."""
-        response = await self.get("/info")
+        response = await self.get("/api/v1/info")
         return MarketTransformer.transform_meta(response)
 
     async def all_mids(self) -> Dict:
         """Get all mid prices - single call, already optimized."""
-        response = await self.get("/info/prices")
+        response = await self.get("/api/v1/info/prices")
         return MarketTransformer.transform_all_mids(response)
 
     async def l2_snapshot(self, name: str) -> Dict:
         """Get L2 orderbook snapshot (Hyperliquid-compatible)."""
         response = await self.get(
-            "/book",
+            "/api/v1/book",
             params={"symbol": name}
         )
         return MarketTransformer.transform_l2_book(response)
@@ -225,7 +225,7 @@ class InfoAsyncAPI(BaseAsyncAPIClient):
     async def candles_snapshot(self, name: str, interval: str, startTime: int, endTime: int) -> List[Dict]:
         """Get candlestick data snapshot (Hyperliquid-compatible)."""
         response = await self.get(
-            "/candles",
+            "/api/v1/candles",
             params={
                 "symbol": name,
                 "interval": interval,
@@ -242,7 +242,7 @@ class InfoAsyncAPI(BaseAsyncAPIClient):
     async def funding_rates(self) -> List[Dict]:
         """Get current funding rates - single call, already optimized."""
         try:
-            response = await self.get("/funding/rates")
+            response = await self.get("/api/v1/funding/rates")
         except:
             response = {"data": []}
 
@@ -251,7 +251,7 @@ class InfoAsyncAPI(BaseAsyncAPIClient):
     async def open_interest(self) -> Dict:
         """Get open interest - single call, already optimized."""
         try:
-            response = await self.get("/stats/open_interest")
+            response = await self.get("/api/v1/stats/open_interest")
         except:
             response = {"data": []}
 

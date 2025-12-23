@@ -83,7 +83,7 @@ class ExchangeAsyncAPI(BaseAsyncAPIClient):
             order_data["type"] = "market"
 
         request = self._build_request_with_auth(order_data, signature_type="create_order")
-        response = await self.post("/api/v1/orders/create", data=request, authenticated=False)
+        response = await self.post("/orders/create", data=request, authenticated=False)
 
         return {
             "status": "ok",
@@ -153,7 +153,7 @@ class ExchangeAsyncAPI(BaseAsyncAPIClient):
             })
 
         batch_data = {"actions": actions}
-        response = await self.post("/api/v1/orders/batch", data=batch_data, authenticated=False)
+        response = await self.post("/orders/batch", data=batch_data, authenticated=False)
 
         statuses = []
         for order_result in response.get("data", {}).get("results", []):
@@ -218,7 +218,7 @@ class ExchangeAsyncAPI(BaseAsyncAPIClient):
             raise ValueError("Either oid or cloid must be provided")
 
         request = self._build_request_with_auth(cancel_data, signature_type="cancel_order")
-        response = await self.post("/api/v1/orders/cancel", data=request, authenticated=False)
+        response = await self.post("/orders/cancel", data=request, authenticated=False)
 
         return {
             "status": "ok",
@@ -304,7 +304,7 @@ class ExchangeAsyncAPI(BaseAsyncAPIClient):
             data["signature"] = signature
 
         headers = {"type": "update_leverage"}
-        response = await self.post("/api/v1/account/leverage", data=data, headers=headers)
+        response = await self.post("/account/leverage", data=data, headers=headers)
 
         return {
             "status": "ok" if response.get("success") else "err",
@@ -333,7 +333,7 @@ class ExchangeAsyncAPI(BaseAsyncAPIClient):
             data["signature"] = signature
 
         headers = {"type": "update_margin_mode"}
-        response = await self.post("/api/v1/account/margin", data=data, headers=headers)
+        response = await self.post("/account/margin", data=data, headers=headers)
 
         return {
             "status": "ok" if response.get("success") else "err",

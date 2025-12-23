@@ -80,44 +80,23 @@ class ExchangeAPI(BaseAPIClient):
             order_data["builder_code"] = builder["b"]
             # Pacifica ignores the 'f' field as fees are account-level, not per-order
 
-        # Handle both string and dict formats for order_type
-        if isinstance(order_type, str):
-            if order_type.lower() == "limit":
-                order_data["price"] = str(limit_px)
-                # Default TIF for limit orders
-                tif = "Gtc"
-            elif order_type.lower() == "market":
-                order_data["type"] = "market"
-                tif = None
-        elif isinstance(order_type, dict):
-            if "limit" in order_type:
-                order_data["price"] = str(limit_px)
-                tif = order_type["limit"].get("tif", "Gtc")
-            elif "market" in order_type:
-                order_data["type"] = "market"
-                tif = None
-
-        # Handle TIF settings
-        if tif:
+        if "limit" in order_type:
+            order_data["price"] = str(limit_px)
+            tif = order_type["limit"].get("tif", "Gtc")
             if tif == "Alo":
                 order_data["post_only"] = True
             elif tif == "Ioc":
                 order_data["tif"] = "IOC"
             elif tif == "Tob":
                 order_data["tif"] = "TOB"
+        elif "market" in order_type:
+            order_data["type"] = "market"
 
         # Build authenticated request with agent wallet support
         request = self._build_request_with_auth(order_data, signature_type="create_order")
 
         # Send request (already includes auth, so authenticated=False)
-        response = self.post("/orders/create", data=request, authenticated=False)
-
-        # Extract order ID safely
-        order_id = None
-        if isinstance(response, dict):
-            data = response.get("data", {})
-            if isinstance(data, dict):
-                order_id = data.get("order_id")
+        response = self.post("/api/v1/orders/create", data=request, authenticated=False)
 
         return {
             "status": "ok",
@@ -126,7 +105,7 @@ class ExchangeAPI(BaseAPIClient):
                 "data": {
                     "statuses": [{
                         "resting": {
-                            "oid": order_id,
+                            "oid": response.get("data", {}).get("order_id"),
                             "cloid": client_order_id
                         }
                     }]
@@ -192,7 +171,7 @@ class ExchangeAPI(BaseAPIClient):
 
         # Make single batch API call with actions
         batch_data = {"actions": actions}
-        response = self.post("/orders/batch", data=batch_data, authenticated=False)  # Already signed
+        response = self.post("/api/v1/orders/batch", data=batch_data, authenticated=False)  # Already signed
 
         # Transform response to Hyperliquid format
         statuses = []
@@ -266,7 +245,7 @@ class ExchangeAPI(BaseAPIClient):
         request = self._build_request_with_auth(cancel_data, signature_type="cancel_order")
 
         # Send request (already includes auth, so authenticated=False)
-        response = self.post("/orders/cancel", data=request, authenticated=False)
+        response = self.post("/api/v1/orders/cancel", data=request, authenticated=False)
 
         return {
             "status": "ok",
@@ -381,7 +360,7 @@ class ExchangeAPI(BaseAPIClient):
 
         # Add operation type header
         headers = {"type": "update_leverage"}
-        response = self.post("/account/leverage", data=data, headers=headers)
+        response = self.post("/api/v1/account/leverage", data=data, headers=headers)
 
         return {
             "status": "ok" if response.get("success") else "err",
@@ -424,7 +403,7 @@ class ExchangeAPI(BaseAPIClient):
 
         # Add operation type header
         headers = {"type": "update_margin_mode"}
-        response = self.post("/account/margin", data=data, headers=headers)
+        response = self.post("/api/v1/account/margin", data=data, headers=headers)
 
         return {
             "status": "ok" if response.get("success") else "err",
@@ -469,7 +448,7 @@ class ExchangeAPI(BaseAPIClient):
 
         # Add operation type header
         headers = {"type": "margin_action"}
-        response = self.post("/account/margin", data=data, headers=headers)
+        response = self.post("/api/v1/account/margin", data=data, headers=headers)
 
         return {
             "status": "ok" if response.get("success") else "err",
@@ -514,7 +493,7 @@ class ExchangeAPI(BaseAPIClient):
 
         # Add operation type header
         headers = {"type": "margin_action"}
-        response = self.post("/account/margin", data=data, headers=headers)
+        response = self.post("/api/v1/account/margin", data=data, headers=headers)
 
         return {
             "status": "ok" if response.get("success") else "err",

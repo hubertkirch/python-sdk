@@ -21,8 +21,8 @@ logger = logging.getLogger(__name__)
 class BaseAPIClient:
     """Base HTTP client for Pacifica API"""
 
-    MAINNET_API = "https://api.pacifica.fi"
-    TESTNET_API = "https://test-api.pacifica.fi"
+    MAINNET_API = "https://api.pacifica.fi/api/v1"
+    TESTNET_API = "https://test-api.pacifica.fi/api/v1"
 
     def __init__(
         self,
@@ -83,7 +83,11 @@ class BaseAPIClient:
             PacificaAccountNotFoundError: When account has no trading history
             PacificaBetaAccessError: When beta access is required
         """
-        url = urljoin(self.base_url, endpoint)
+        # Fix URL construction: ensure proper path joining
+        if endpoint.startswith('/'):
+            url = self.base_url + endpoint
+        else:
+            url = f"{self.base_url}/{endpoint}"
 
         headers = {}
         if authenticated and self.auth:
@@ -93,10 +97,12 @@ class BaseAPIClient:
         if additional_headers:
             headers.update(additional_headers)
 
-        if self.auth and params is None:
-            params = {}
-        if self.auth and "account" not in params:
-            params["account"] = self.auth.get_account()  # Use get_account() for agent mode support
+        # Only add account parameter for authenticated requests
+        if authenticated and self.auth:
+            if params is None:
+                params = {}
+            if "account" not in params:
+                params["account"] = self.auth.get_account()  # Use get_account() for agent mode support
 
         logger.debug(f"{method} {url} params={params}")
 

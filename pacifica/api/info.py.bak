@@ -37,9 +37,8 @@ class InfoAPI(BaseAPIClient):
         # Step 1: Check account settings for custom leverage
         try:
             settings_response = self.get(
-                "/account/settings",
-                params={"account": account},
-                authenticated=False
+                "/api/v1/account/settings",
+                params={"account": account}
             )
 
             data = settings_response.get('data', {})
@@ -59,7 +58,7 @@ class InfoAPI(BaseAPIClient):
 
         # Step 2: Get max leverage from market info
         try:
-            info_response = self.get("/info", authenticated=False)
+            info_response = self.get("/api/v1/info")
             markets = info_response.get('data', [])
 
             if isinstance(markets, list):
@@ -91,9 +90,8 @@ class InfoAPI(BaseAPIClient):
         # Fetch account data
         try:
             account_response = self.get(
-                "/account",
-                params={"account": address},
-                authenticated=False
+                "/api/v1/account",
+                params={"account": address}
             )
         except PacificaAccountNotFoundError:
             account_response = {"data": {
@@ -106,9 +104,8 @@ class InfoAPI(BaseAPIClient):
 
         # Fetch positions
         positions_response = self.get(
-            "/positions",
-            params={"account": address},
-            authenticated=False
+            "/api/v1/positions",
+            params={"account": address}
         )
 
         positions = positions_response.get('data', [])
@@ -118,16 +115,15 @@ class InfoAPI(BaseAPIClient):
             # Fetch account settings and market info ONCE for all positions
             try:
                 settings_response = self.get(
-                    "/account/settings",
-                    params={"account": address},
-                    authenticated=False
+                    "/api/v1/account/settings",
+                    params={"account": address}
                 )
                 settings_data = settings_response.get('data', {})
             except:
                 settings_data = {}
 
             try:
-                info_response = self.get("/info", authenticated=False)
+                info_response = self.get("/api/v1/info")
                 markets_data = info_response.get('data', [])
             except:
                 markets_data = []
@@ -185,9 +181,8 @@ class InfoAPI(BaseAPIClient):
             address = self.auth.get_account()  # Use get_account() for agent mode support
 
         response = self.get(
-            "/orders",
-            params={"account": address},
-            authenticated=False
+            "/api/v1/orders",
+            params={"account": address}
         )
 
         return AccountTransformer.transform_open_orders(response)
@@ -208,9 +203,8 @@ class InfoAPI(BaseAPIClient):
             address = self.auth.get_account()  # Use get_account() for agent mode support
 
         response = self.get(
-            "/trades/history",
-            params={"account": address},
-            authenticated=False
+            "/api/v1/trades/history",
+            params={"account": address}
         )
 
         return AccountTransformer.transform_user_fills(response, oid)
@@ -235,7 +229,7 @@ class InfoAPI(BaseAPIClient):
             params["start_time"] = start_time
 
         try:
-            response = self.get("/funding/history", params=params, authenticated=False)
+            response = self.get("/api/v1/funding/history", params=params)
         except:
             response = {"data": []}
 
@@ -249,7 +243,7 @@ class InfoAPI(BaseAPIClient):
         Returns:
             Market metadata in Hyperliquid format
         """
-        response = self.get("/info", authenticated=False)
+        response = self.get("/api/v1/info")
         return MarketTransformer.transform_meta(response)
 
     def all_mids(self) -> Dict:
@@ -260,7 +254,7 @@ class InfoAPI(BaseAPIClient):
         Returns:
             Mid prices for all markets in Hyperliquid format
         """
-        response = self.get("/info/prices", authenticated=False)
+        response = self.get("/api/v1/info/prices")
         return MarketTransformer.transform_all_mids(response)
 
     def l2_snapshot(self, name: str) -> Dict:
@@ -274,9 +268,8 @@ class InfoAPI(BaseAPIClient):
             L2 orderbook in Hyperliquid format
         """
         response = self.get(
-            "/book",
-            params={"symbol": name},
-            authenticated=False
+            "/api/v1/book",
+            params={"symbol": name}
         )
         return MarketTransformer.transform_l2_book(response)
 
@@ -298,14 +291,13 @@ class InfoAPI(BaseAPIClient):
             Candles in Hyperliquid format
         """
         response = self.get(
-            "/candles",
+            "/api/v1/candles",
             params={
                 "symbol": name,
                 "interval": interval,
                 "start_time": startTime,
                 "end_time": endTime
-            },
-            authenticated=False
+            }
         )
         return MarketTransformer.transform_candles(response, name, interval)
 
@@ -322,7 +314,7 @@ class InfoAPI(BaseAPIClient):
             Funding rates in Hyperliquid format
         """
         try:
-            response = self.get("/funding/rates", authenticated=False)
+            response = self.get("/api/v1/funding/rates")
         except:
             response = {"data": []}
 
@@ -337,7 +329,7 @@ class InfoAPI(BaseAPIClient):
             Open interest in Hyperliquid format
         """
         try:
-            response = self.get("/stats/open_interest", authenticated=False)
+            response = self.get("/api/v1/stats/open_interest")
         except:
             response = {"data": []}
 
