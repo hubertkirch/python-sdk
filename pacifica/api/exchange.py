@@ -387,10 +387,11 @@ class ExchangeAPI(BaseAPIClient):
         for cancel_req in cancels:
             try:
                 # Use individual cancel method for each request
+                symbol = cancel_req.get("name") or cancel_req.get("coin")
                 if "oid" in cancel_req:
-                    result = self.cancel(name=cancel_req["name"], oid=cancel_req["oid"])
+                    result = self.cancel(name=symbol, oid=cancel_req["oid"])
                 elif "cloid" in cancel_req:
-                    result = self.cancel(name=cancel_req["name"], cloid=cancel_req["cloid"])
+                    result = self.cancel(name=symbol, cloid=cancel_req["cloid"])
                 else:
                     statuses.append("error")
                     continue

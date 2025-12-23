@@ -247,10 +247,11 @@ class ExchangeAsyncAPI(BaseAsyncAPIClient):
         cancel_tasks = []
 
         for cancel_req in cancels:
+            symbol = cancel_req.get("name") or cancel_req.get("coin")
             if "oid" in cancel_req:
-                task = self.cancel(name=cancel_req["name"], oid=cancel_req["oid"])
+                task = self.cancel(name=symbol, oid=cancel_req["oid"])
             elif "cloid" in cancel_req:
-                task = self.cancel(name=cancel_req["name"], cloid=cancel_req["cloid"])
+                task = self.cancel(name=symbol, cloid=cancel_req["cloid"])
             else:
                 # Create a completed task with error status for invalid requests
                 async def error_task():
