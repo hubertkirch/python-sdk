@@ -20,7 +20,16 @@ class MarketTransformer(ResponseTransformer):
                 "name": market["symbol"],
                 "szDecimals": market.get("size_decimals", 8),
                 "maxLeverage": market.get("max_leverage", 100),
-                "onlyIsolated": False
+                "onlyIsolated": market.get("isolated_only", False),
+                "lotSize": market.get("lot_size", "0.00001"),
+                "tickSize": market.get("tick_size", "0.01"),
+                "minTick": market.get("min_tick", "0"),
+                "maxTick": market.get("max_tick", "1000000"),
+                "minOrderSize": market.get("min_order_size", "10"),
+                "maxOrderSize": market.get("max_order_size", "5000000"),
+                "fundingRate": market.get("funding_rate", "0"),
+                "nextFundingRate": market.get("next_funding_rate", "0"),
+                "createdAt": market.get("created_at")
             })
 
         return {"universe": universe}
