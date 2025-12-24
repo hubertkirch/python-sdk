@@ -363,3 +363,62 @@ class AccountTransformer:
             "nRequestsCap": data.get("requests_cap", 1000),
             "resetTime": data.get("reset_time", 0)
         }
+
+    @classmethod
+    def transform_non_funding_ledger_updates(cls, balance_events: List[Dict]) -> List[Dict]:
+        """
+        Transform Pacifica balance history events to Hyperliquid non-funding ledger format.
+
+        Pacifica balance event format:
+        {
+            "amount": "100.000000",
+            "balance": "1200.000000",
+            "event_type": "deposit",
+            "created_at": 1716200000000
+        }
+
+        Hyperliquid format:
+        [
+            {
+                "delta": {
+                    "coin": "USDC",  # Default to USDC as Pacifica uses USDC as base
+                    "type": "deposit",  # or "withdraw", "transfer"
+                    "usdc": "100.0"
+                },
+                "hash": "0x...",
+                "time": 1716200000000
+            }
+        ]
+        """
+        transformed = []
+
+        for event in balance_events:
+            event_type = event.get("event_type", "")
+
+            # Map Pacifica event types to Hyperliquid types
+            hl_type = None
+            if event_type in ["deposit", "deposit_release"]:
+                hl_type = "deposit"
+            elif event_type == "withdraw":
+                hl_type = "withdraw"
+            elif event_type == "subaccount_transfer":
+                hl_type = "transfer"
+
+            # Skip if not a non-funding event
+            if not hl_type:
+                continue
+
+            # Build Hyperliquid format
+            ledger_update = {
+                "delta": {
+                    "coin": "USDC",  # Pacifica uses USDC as base currency
+                    "type": hl_type,
+                    "usdc": event.get("amount", "0")
+                },
+                "hash": event.get("tx_hash", ""),  # Transaction hash if available
+                "time": event.get("created_at", 0)
+            }
+
+            transformed.append(ledger_update)
+
+        return transformed

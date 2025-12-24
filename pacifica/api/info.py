@@ -241,6 +241,61 @@ class InfoAPI(BaseAPIClient):
 
         return AccountTransformer.transform_user_funding(response)
 
+    def user_non_funding_ledger_updates(self, user: str, startTime: int, endTime: Optional[int] = None) -> List[Dict]:
+        """
+        Retrieve non-funding ledger updates for a user (deposits, withdrawals, transfers).
+
+        Hyperliquid-compatible method that uses Pacifica's balance history endpoint.
+
+        Args:
+            user: Onchain address in 42-character hexadecimal format
+            startTime: Start time in milliseconds (epoch timestamp)
+            endTime: End time in milliseconds (optional, defaults to current time)
+
+        Returns:
+            Non-funding ledger updates in Hyperliquid format including deposits,
+            withdrawals, transfers, and other account activities excluding funding payments
+        """
+        # Use provided user address or auth address
+        address = user if user else (self.auth.get_account() if self.auth else None)
+        if not address:
+            raise ValueError("User address required")
+
+        # Fetch recent balance history (single request, no pagination)
+        params = {
+            "account": address,
+            "limit": 100  # Get up to 100 most recent events
+        }
+
+        try:
+            response = self.get("/api/v1/account/balance/history", params=params, authenticated=False)
+            data = response.get("data", [])
+
+            # Filter events by timestamp and type
+            filtered_events = []
+            for event in data:
+                event_time = event.get("created_at", 0)
+
+                # Check if event is within time range
+                if event_time < startTime:
+                    # Since events are ordered by time desc, we can stop filtering
+                    break
+
+                if endTime and event_time > endTime:
+                    continue
+
+                # Filter for non-funding events only
+                event_type = event.get("event_type", "")
+                if event_type in ["deposit", "deposit_release", "withdraw", "subaccount_transfer"]:
+                    filtered_events.append(event)
+
+        except Exception as e:
+            logger.error(f"Failed to fetch balance history: {e}")
+            filtered_events = []
+
+        # Transform to Hyperliquid format
+        return AccountTransformer.transform_non_funding_ledger_updates(filtered_events)
+
     def meta(self) -> Dict:
         """
         Get market metadata.
