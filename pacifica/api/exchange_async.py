@@ -74,7 +74,7 @@ class ExchangeAsyncAPI(BaseAsyncAPIClient):
             order_data["price"] = str(limit_px)
             tif = order_type["limit"].get("tif", "Gtc")
             if tif == "Alo":
-                order_data["post_only"] = True
+                order_data["tif"] = "ALO"  # Pacifica uses ALO, not post_only
             elif tif == "Ioc":
                 order_data["tif"] = "IOC"
             elif tif == "Tob":
@@ -139,7 +139,7 @@ class ExchangeAsyncAPI(BaseAsyncAPIClient):
                 order_data["price"] = str(order_req["limit_px"])
                 tif = order_type["limit"].get("tif", "Gtc")
                 if tif == "Alo":
-                    order_data["post_only"] = True
+                    order_data["tif"] = "ALO"  # Pacifica uses ALO, not post_only
                 elif tif == "Ioc":
                     order_data["tif"] = "IOC"
             elif "market" in order_type:

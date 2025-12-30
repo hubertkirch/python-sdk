@@ -118,7 +118,6 @@ class ExchangeAPI(BaseAPIClient):
         # Only apply TIF for limit orders (market orders don't have TIF)
         if tif:
             if tif == "Alo":
-                order_data["post_only"] = True
                 order_data["tif"] = "ALO"  # Pacifica uses ALO
             elif tif == "Ioc":
                 order_data["tif"] = "IOC"
@@ -231,7 +230,6 @@ class ExchangeAPI(BaseAPIClient):
             # Handle TIF settings for limit orders - Map Hyperliquid to Pacifica format
             if tif:
                 if tif == "Alo":
-                    order_data["post_only"] = True
                     order_data["tif"] = "ALO"
                 elif tif == "Ioc":
                     order_data["tif"] = "IOC"
