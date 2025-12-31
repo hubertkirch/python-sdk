@@ -46,7 +46,7 @@ class ExchangeAsyncAPI(BaseAsyncAPIClient):
             order_type: Order type config
             reduce_only: Reduce only flag
             cloid: Client order ID
-            builder: Optional builder dict {"b": "address", "f": fee_bps}
+            builder: Optional builder dict {"b": "builder_code"} (max 16 alphanumeric chars)
 
         Returns:
             Order response with status
@@ -65,10 +65,9 @@ class ExchangeAsyncAPI(BaseAsyncAPIClient):
         # Handle builder if provided
         if builder:
             if not isinstance(builder, dict) or "b" not in builder:
-                raise ValueError("Builder must be dict with 'b' (address) and optional 'f' (fee)")
+                raise ValueError("Builder must be dict with 'b' (builder_code)")
             order_data["builder_code"] = builder["b"]
-            if "f" in builder:
-                order_data["builder_fee"] = builder["f"]
+            # Note: Fee is configured at builder level and user approval level, not per-order
 
         if "limit" in order_type:
             order_data["price"] = str(limit_px)
@@ -130,10 +129,9 @@ class ExchangeAsyncAPI(BaseAsyncAPIClient):
             if "builder" in order_req:
                 builder = order_req["builder"]
                 if not isinstance(builder, dict) or "b" not in builder:
-                    raise ValueError("Builder must be dict with 'b' (address) and optional 'f' (fee)")
+                    raise ValueError("Builder must be dict with 'b' (builder_code)")
                 order_data["builder_code"] = builder["b"]
-                if "f" in builder:
-                    order_data["builder_fee"] = builder["f"]
+                # Note: Fee is configured at builder level and user approval level, not per-order
 
             order_type = order_req.get("order_type", {"limit": {"tif": "Gtc"}})
 
@@ -192,7 +190,7 @@ class ExchangeAsyncAPI(BaseAsyncAPIClient):
 
         Args:
             order_requests: List of order dictionaries with 'name' parameter
-            builder: Optional builder dict to apply to all orders
+            builder: Optional builder dict {"b": "builder_code"} to apply to all orders
             grouping: Grouping type (default 'na')
         """
         # Add builder to each order if provided globally
@@ -515,7 +513,7 @@ class ExchangeAsyncAPI(BaseAsyncAPIClient):
             px: Optional limit price
             slippage: Slippage tolerance (default 5%)
             cloid: Client order ID
-            builder: Optional builder dict {"b": "address", "f": fee_bps}
+            builder: Optional builder dict {"b": "builder_code"}
 
         Returns:
             Order response
@@ -559,7 +557,7 @@ class ExchangeAsyncAPI(BaseAsyncAPIClient):
             px: Optional limit price
             slippage: Slippage tolerance (default 5%)
             cloid: Client order ID
-            builder: Optional builder dict
+            builder: Optional builder dict {"b": "builder_code"}
 
         Returns:
             Order response

@@ -54,7 +54,7 @@ class ExchangeAPI(BaseAPIClient):
             order_type: Order type config (e.g., {"limit": {"tif": "GTC"}})
             reduce_only: Reduce only flag
             cloid: Client order ID
-            builder: Optional builder dict {"b": "address", "f": fee_bps}
+            builder: Optional builder dict {"b": "builder_code"} (max 16 alphanumeric chars)
 
         Returns:
             Order response with status
@@ -74,7 +74,7 @@ class ExchangeAPI(BaseAPIClient):
         # Handle builder if provided
         if builder:
             if not isinstance(builder, dict) or "b" not in builder:
-                raise ValueError("Builder must be dict with 'b' (address) and optional 'f' (fee)")
+                raise ValueError("Builder must be dict with 'b' (builder_code)")
             # Map builder to Pacifica's format
             # NOTE: Pacifica only accepts builder address, fee is set at account level
             order_data["builder_code"] = builder["b"]
@@ -202,10 +202,9 @@ class ExchangeAPI(BaseAPIClient):
             if "builder" in order_req:
                 builder = order_req["builder"]
                 if not isinstance(builder, dict) or "b" not in builder:
-                    raise ValueError("Builder must be dict with 'b' (address) and optional 'f' (fee)")
+                    raise ValueError("Builder must be dict with 'b' (builder_code)")
                 order_data["builder_code"] = builder["b"]
-                if "f" in builder:
-                    order_data["builder_fee"] = builder["f"]
+                # Note: Fee is configured at builder level and user approval level, not per-order
 
             order_type = order_req.get("order_type", {"limit": {"tif": "GTC"}})
 
@@ -313,7 +312,7 @@ class ExchangeAPI(BaseAPIClient):
 
         Args:
             order_requests: List of order dictionaries with 'name' parameter
-            builder: Optional builder dict to apply to all orders
+            builder: Optional builder dict {"b": "builder_code"} to apply to all orders
             grouping: Grouping type (default 'na')
 
         Returns:
@@ -649,7 +648,7 @@ class ExchangeAPI(BaseAPIClient):
             px: Optional limit price
             slippage: Slippage tolerance (default 5%)
             cloid: Client order ID
-            builder: Optional builder dict {"b": "address", "f": fee_bps}
+            builder: Optional builder dict {"b": "builder_code"}
 
         Returns:
             Order response
@@ -695,7 +694,7 @@ class ExchangeAPI(BaseAPIClient):
             px: Optional limit price
             slippage: Slippage tolerance (default 5%)
             cloid: Client order ID
-            builder: Optional builder dict
+            builder: Optional builder dict {"b": "builder_code"}
 
         Returns:
             Order response
