@@ -111,9 +111,11 @@ class ExchangeAsyncAPI(BaseAsyncAPIClient):
             Batch order response
         """
         actions = []
+        generated_cloids = []  # Track cloids locally since API doesn't echo them back
 
         for order_req in orders:
             client_order_id = self._generate_client_order_id(order_req.get("cloid"))
+            generated_cloids.append(client_order_id)  # Store for response mapping
 
             order_data = {
                 "symbol": order_req.get("name") or order_req.get("coin"),  # Accept both 'name' (Hyperliquid) and 'coin' fields
@@ -156,17 +158,22 @@ class ExchangeAsyncAPI(BaseAsyncAPIClient):
         response = await self.post("/orders/batch", data=batch_data, authenticated=False)
 
         statuses = []
-        for order_result in response.get("data", {}).get("results", []):
+        results = response.get("data", {}).get("results", [])
+        for idx, order_result in enumerate(results):
+            # Get the cloid we generated for this order (by index)
+            cloid = generated_cloids[idx] if idx < len(generated_cloids) else None
+
             if order_result.get("success"):
                 statuses.append({
                     "resting": {
                         "oid": order_result.get("order_id"),
-                        "cloid": order_result.get("client_order_id")
+                        "cloid": cloid
                     }
                 })
             else:
                 statuses.append({
-                    "error": order_result.get("error", "Unknown error")
+                    "error": order_result.get("error", "Unknown error"),
+                    "cloid": cloid  # Include cloid for traceability on errors
                 })
 
         return {

@@ -182,9 +182,11 @@ class ExchangeAPI(BaseAPIClient):
         """
         # Transform orders to Pacifica batch format with actions
         actions = []
+        generated_cloids = []  # Track cloids locally since API doesn't echo them back
 
         for order_req in orders:
             client_order_id = self._generate_client_order_id(order_req.get("cloid"))
+            generated_cloids.append(client_order_id)  # Store for response mapping
 
             # Create the order data that needs to be signed
             order_data = {
@@ -274,12 +276,15 @@ class ExchangeAPI(BaseAPIClient):
             # If response is not a dict, treat as error
             results = []
 
-        for order_result in results:
+        for idx, order_result in enumerate(results):
+            # Get the cloid we generated for this order (by index)
+            cloid = generated_cloids[idx] if idx < len(generated_cloids) else None
+
             if isinstance(order_result, dict) and order_result.get("success"):
                 statuses.append({
                     "resting": {
                         "oid": order_result.get("order_id"),
-                        "cloid": order_result.get("client_order_id")
+                        "cloid": cloid
                     }
                 })
             else:
@@ -287,7 +292,8 @@ class ExchangeAPI(BaseAPIClient):
                 if isinstance(order_result, dict):
                     error_msg = order_result.get("error", error_msg)
                 statuses.append({
-                    "error": error_msg
+                    "error": error_msg,
+                    "cloid": cloid  # Include cloid for traceability on errors
                 })
 
         return {
