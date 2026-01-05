@@ -447,29 +447,18 @@ class ExchangeAPI(BaseAPIClient):
         Returns:
             Update response
         """
-        import time
-
-        # Prepare request data with required signature fields
-        timestamp = int(time.time() * 1000)
+        # Prepare payload data (account, timestamp, signature handled by _build_request_with_auth)
         data = {
-            "account": self.auth.get_public_key() if self.auth else None,
             "symbol": name,
-            "leverage": int(leverage),  # API expects integer, not string
-            "timestamp": timestamp,
-            "type": "update_leverage"
+            "leverage": int(leverage),
         }
 
-        # Create signature for the request
-        if self.auth:
-            import json
-            message_dict = {k: v for k, v in data.items() if k != 'signature'}
-            message_str = json.dumps(message_dict, separators=(',', ':'), sort_keys=True)
-            signature = self.auth.sign_request(message_str)
-            data["signature"] = signature
+        # Build authenticated request with proper signing
+        request = self._build_request_with_auth(data, signature_type="update_leverage")
 
-        # Add operation type header
+        # Send request with type in header only
         headers = {"type": "update_leverage"}
-        response = self.post("/account/leverage", data=data, headers=headers)
+        response = self.post("/account/leverage", data=request, authenticated=False, headers=headers)
 
         return {
             "status": "ok" if response.get("success") else "err",

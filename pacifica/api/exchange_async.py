@@ -293,24 +293,18 @@ class ExchangeAsyncAPI(BaseAsyncAPIClient):
 
     async def update_leverage(self, leverage: int, name: str, is_cross: bool = True) -> Dict:
         """Update leverage for a symbol (Hyperliquid-compatible)."""
-        timestamp = int(time.time() * 1000)
+        # Prepare payload data (account, timestamp, signature handled by _build_request_with_auth)
         data = {
-            "account": self.auth.get_public_key() if self.auth else None,
             "symbol": name,
-            "leverage": leverage,
-            "timestamp": timestamp,
-            "type": "update_leverage"
+            "leverage": int(leverage),
         }
 
-        if self.auth:
-            import json
-            message_dict = {k: v for k, v in data.items() if k != 'signature'}
-            message_str = json.dumps(message_dict, separators=(',', ':'), sort_keys=True)
-            signature = self.auth.sign_request(message_str)
-            data["signature"] = signature
+        # Build authenticated request with proper signing
+        request = self._build_request_with_auth(data, signature_type="update_leverage")
 
+        # Send request with type in header only
         headers = {"type": "update_leverage"}
-        response = await self.post("/account/leverage", data=data, headers=headers)
+        response = await self.post("/account/leverage", data=request, authenticated=False, headers=headers)
 
         return {
             "status": "ok" if response.get("success") else "err",
