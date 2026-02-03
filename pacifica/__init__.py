@@ -7,5 +7,5 @@ from pacifica.setup import setup
 from pacifica.auth import PacificaAuth
 from pacifica.async_client import AsyncPacificaClient
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __all__ = ["Client", "setup", "PacificaAuth", "AsyncPacificaClient"]
