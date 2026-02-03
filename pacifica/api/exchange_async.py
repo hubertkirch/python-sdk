@@ -5,12 +5,57 @@ Async Exchange API implementation with parallel execution optimization
 import asyncio
 import uuid
 import time
+from decimal import Decimal
 from typing import Dict, List, Optional, Any, Union
 from .base_async import BaseAsyncAPIClient
 import logging
 
 
 logger = logging.getLogger(__name__)
+
+
+def format_number(value: Union[int, float, str, Decimal]) -> str:
+    """
+    Format a number as a string without scientific notation.
+
+    Python's str() function uses scientific notation for small floats:
+        str(0.00004) -> '4e-05'
+
+    This function ensures consistent decimal notation:
+        format_number(0.00004) -> '0.00004'
+
+    Args:
+        value: Number to format (int, float, str, or Decimal)
+
+    Returns:
+        String representation without scientific notation
+    """
+    if isinstance(value, str):
+        # Already a string, but validate it's not scientific notation
+        if 'e' in value.lower():
+            value = Decimal(value)
+        else:
+            return value
+
+    if isinstance(value, int):
+        return str(value)
+
+    # Convert to Decimal for precise formatting
+    if isinstance(value, float):
+        # Use string conversion to avoid float precision issues
+        dec = Decimal(str(value))
+    else:
+        dec = Decimal(value)
+
+    # Format without scientific notation
+    # normalize() removes trailing zeros, but we need to handle the exponent
+    formatted = format(dec, 'f')
+
+    # Remove excessive trailing zeros but keep at least one decimal place for floats
+    if '.' in formatted:
+        formatted = formatted.rstrip('0').rstrip('.')
+
+    return formatted
 
 
 class ExchangeAsyncAPI(BaseAsyncAPIClient):
@@ -56,7 +101,7 @@ class ExchangeAsyncAPI(BaseAsyncAPIClient):
         order_data = {
             "symbol": name,
             "side": "bid" if is_buy else "ask",
-            "amount": str(sz),
+            "amount": format_number(sz),
             "reduce_only": reduce_only,
             "client_order_id": client_order_id,
             "tif": "GTC"
@@ -70,7 +115,7 @@ class ExchangeAsyncAPI(BaseAsyncAPIClient):
             # Note: Fee is configured at builder level and user approval level, not per-order
 
         if "limit" in order_type:
-            order_data["price"] = str(limit_px)
+            order_data["price"] = format_number(limit_px)
             tif = order_type["limit"].get("tif", "Gtc")
             if tif == "Alo":
                 order_data["tif"] = "ALO"  # Pacifica uses ALO, not post_only
@@ -119,7 +164,7 @@ class ExchangeAsyncAPI(BaseAsyncAPIClient):
             order_data = {
                 "symbol": order_req.get("name") or order_req.get("coin"),  # Accept both 'name' (Hyperliquid) and 'coin' fields
                 "side": "bid" if order_req["is_buy"] else "ask",
-                "amount": str(order_req["sz"]),
+                "amount": format_number(order_req["sz"]),
                 "reduce_only": order_req.get("reduce_only", False),
                 "client_order_id": client_order_id,
                 "tif": "GTC"
@@ -136,7 +181,7 @@ class ExchangeAsyncAPI(BaseAsyncAPIClient):
             order_type = order_req.get("order_type", {"limit": {"tif": "Gtc"}})
 
             if "limit" in order_type:
-                order_data["price"] = str(order_req["limit_px"])
+                order_data["price"] = format_number(order_req["limit_px"])
                 tif = order_type["limit"].get("tif", "Gtc")
                 if tif == "Alo":
                     order_data["tif"] = "ALO"  # Pacifica uses ALO, not post_only

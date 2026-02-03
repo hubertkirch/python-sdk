@@ -4,12 +4,57 @@ Exchange API implementation - trading operations
 
 import uuid
 import time
+from decimal import Decimal
 from typing import Dict, List, Optional, Any, Union
 from .base import BaseAPIClient
 import logging
 
 
 logger = logging.getLogger(__name__)
+
+
+def format_number(value: Union[int, float, str, Decimal]) -> str:
+    """
+    Format a number as a string without scientific notation.
+
+    Python's str() function uses scientific notation for small floats:
+        str(0.00004) -> '4e-05'
+
+    This function ensures consistent decimal notation:
+        format_number(0.00004) -> '0.00004'
+
+    Args:
+        value: Number to format (int, float, str, or Decimal)
+
+    Returns:
+        String representation without scientific notation
+    """
+    if isinstance(value, str):
+        # Already a string, but validate it's not scientific notation
+        if 'e' in value.lower():
+            value = Decimal(value)
+        else:
+            return value
+
+    if isinstance(value, int):
+        return str(value)
+
+    # Convert to Decimal for precise formatting
+    if isinstance(value, float):
+        # Use string conversion to avoid float precision issues
+        dec = Decimal(str(value))
+    else:
+        dec = Decimal(value)
+
+    # Format without scientific notation
+    # normalize() removes trailing zeros, but we need to handle the exponent
+    formatted = format(dec, 'f')
+
+    # Remove excessive trailing zeros but keep at least one decimal place for floats
+    if '.' in formatted:
+        formatted = formatted.rstrip('0').rstrip('.')
+
+    return formatted
 
 
 class ExchangeAPI(BaseAPIClient):
@@ -65,7 +110,7 @@ class ExchangeAPI(BaseAPIClient):
         order_data = {
             "symbol": name,
             "side": "bid" if is_buy else "ask",
-            "amount": str(sz),
+            "amount": format_number(sz),
             "reduce_only": reduce_only,
             "client_order_id": client_order_id
             # TIF will be set based on order type
@@ -85,7 +130,7 @@ class ExchangeAPI(BaseAPIClient):
             if order_type.lower() == "limit":
                 if limit_px is None:
                     raise ValueError("limit_px is required for limit orders")
-                order_data["price"] = str(limit_px)
+                order_data["price"] = format_number(limit_px)
                 # Default TIF for limit orders
                 order_data["tif"] = "GTC"
                 tif = "GTC"
@@ -101,13 +146,13 @@ class ExchangeAPI(BaseAPIClient):
             if "limit" in order_type:
                 if limit_px is None:
                     raise ValueError("limit_px is required for limit orders")
-                order_data["price"] = str(limit_px)
+                order_data["price"] = format_number(limit_px)
                 tif = order_type["limit"].get("tif", "GTC")
                 order_data["tif"] = tif  # Set initial TIF
             elif "market" in order_type:
                 # Market orders require slippage_percent instead of price
                 slippage = order_type.get("market", {}).get("slippage", "0.5")
-                order_data["slippage_percent"] = str(slippage)
+                order_data["slippage_percent"] = format_number(slippage)
                 # Remove price field if present
                 if "price" in order_data:
                     del order_data["price"]
@@ -192,7 +237,7 @@ class ExchangeAPI(BaseAPIClient):
             order_data = {
                 "symbol": order_req.get("name") or order_req.get("coin"),  # Accept both 'name' (Hyperliquid) and 'coin' fields
                 "side": "bid" if order_req["is_buy"] else "ask",
-                "amount": str(order_req["sz"]),
+                "amount": format_number(order_req["sz"]),
                 "reduce_only": order_req.get("reduce_only", False),
                 "client_order_id": client_order_id
                 # TIF will be set based on order type
@@ -211,7 +256,7 @@ class ExchangeAPI(BaseAPIClient):
             # Handle both string and dict formats for order_type
             if isinstance(order_type, str):
                 if order_type.lower() == "limit":
-                    order_data["price"] = str(order_req["limit_px"])
+                    order_data["price"] = format_number(order_req["limit_px"])
                     order_data["tif"] = "GTC"  # Default TIF for limit orders
                     tif = "GTC"
                 elif order_type.lower() == "market":
@@ -220,7 +265,7 @@ class ExchangeAPI(BaseAPIClient):
                     tif = None
             elif isinstance(order_type, dict):
                 if "limit" in order_type:
-                    order_data["price"] = str(order_req["limit_px"])
+                    order_data["price"] = format_number(order_req["limit_px"])
                     tif = order_type["limit"].get("tif", "GTC")
                     order_data["tif"] = tif
                 elif "market" in order_type:
@@ -529,7 +574,7 @@ class ExchangeAPI(BaseAPIClient):
         data = {
             "account": self.auth.get_public_key() if self.auth else None,
             "symbol": name,
-            "amount": str(abs(amount)),  # Ensure positive for add
+            "amount": format_number(abs(amount)),  # Ensure positive for add
             "is_isolated": True,  # Margin adjustment only works for isolated positions
             "action": "add",
             "timestamp": timestamp,
@@ -574,7 +619,7 @@ class ExchangeAPI(BaseAPIClient):
         data = {
             "account": self.auth.get_public_key() if self.auth else None,
             "symbol": name,
-            "amount": str(abs(amount)),  # Ensure positive for remove
+            "amount": format_number(abs(amount)),  # Ensure positive for remove
             "is_isolated": True,  # Margin adjustment only works for isolated positions
             "action": "remove",
             "timestamp": timestamp,
